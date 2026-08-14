@@ -4,13 +4,13 @@ on:
   push:
     branches: [ main ]
     tags:
-      - 'v*'
+      - 'v*'          # 小写 v 开头
+      - 'V*'          # 大写 V 开头也支持
   workflow_dispatch:
 
 jobs:
   build-windows:
     runs-on: windows-latest
-
     steps:
       - name: 获取源码
         uses: actions/checkout@v4
@@ -42,7 +42,7 @@ jobs:
       - name: 构建 PyInstaller 版本
         run: |
           $VERSION_TAG = "${{ github.ref_name }}"
-          if ($VERSION_TAG -notmatch '^v') { $VERSION_TAG = "dev" }
+          if ($VERSION_TAG -notmatch '^[vV]') { $VERSION_TAG = "dev" }
           New-Item -ItemType Directory -Force -Path static
           pyinstaller -F -w `
             --name "CoreNetDiag_PyInstaller_$VERSION_TAG" `
@@ -56,19 +56,26 @@ jobs:
       - name: 构建 Nuitka 版本
         run: |
           $VERSION_TAG = "${{ github.ref_name }}"
-          if ($VERSION_TAG -match '^v') {
-            $DISPLAY_NAME = $VERSION_TAG
-            $RAW_VERSION = $VERSION_TAG.Substring(1)
+
+          # 强制转小写并去掉开头的 v/V
+          $clean = $VERSION_TAG.ToLower() -replace '^v', ''
+
+          if ($clean -match '^\d+(\.\d+)*$') {
+            $DISPLAY_NAME = $VERSION_TAG          # 文件名保留原始标签（V1.0 或 v1.0）
+            $RAW_VERSION  = $clean
           } else {
             $DISPLAY_NAME = "dev"
-            $RAW_VERSION = "0.0.0.0"
+            $RAW_VERSION  = "0.0.0.0"
           }
-          # 补全版本号为四段
+
+          # 强制补齐为四段数字版本（Nuitka 强制要求）
           $parts = $RAW_VERSION.Split('.')
           while ($parts.Count -lt 4) { $parts += '0' }
-          $FULL_VERSION = $parts -join '.'
+          $FULL_VERSION = ($parts[0..3] -join '.')
 
-          # 设置环境变量让 Nuitka 自动下载依赖
+          Write-Host "DISPLAY_NAME = $DISPLAY_NAME"
+          Write-Host "FULL_VERSION = $FULL_VERSION"
+
           $env:NUITKA_DEPS_DOWNLOAD = "yes"
 
           python -m nuitka `
@@ -97,7 +104,7 @@ jobs:
           path: dist/*.exe
 
       - name: 创建 Release（仅 tag 触发）
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/V')
         uses: softprops/action-gh-release@v1
         with:
           files: dist/*.exe
