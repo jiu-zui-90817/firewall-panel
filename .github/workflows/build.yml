@@ -2,10 +2,10 @@ name: Build CoreNet-Diag (PyInstaller + Nuitka)
 
 on:
   push:
-    branches: [ main ]          # 自动构建 main 分支
+    branches: [ main ]
     tags:
-      - 'v*'                    # 推送 v* 标签时也构建
-  workflow_dispatch:            # 手动触发
+      - 'v*'
+  workflow_dispatch:
 
 jobs:
   build-windows:
@@ -41,7 +41,6 @@ jobs:
 
       - name: 构建 PyInstaller 版本
         run: |
-          # 获取标签名（若没有标签，则为分支名或默认 dev）
           $VERSION_TAG = "${{ github.ref_name }}"
           if ($VERSION_TAG -notmatch '^v') { $VERSION_TAG = "dev" }
           New-Item -ItemType Directory -Force -Path static
@@ -57,30 +56,32 @@ jobs:
       - name: 构建 Nuitka 版本
         run: |
           $VERSION_TAG = "${{ github.ref_name }}"
-          # 确定显示名称（用于输出文件名）
           if ($VERSION_TAG -match '^v') {
             $DISPLAY_NAME = $VERSION_TAG
-            # 去掉前导 v 或 V，提取纯数字部分
             $RAW_VERSION = $VERSION_TAG.Substring(1)
           } else {
             $DISPLAY_NAME = "dev"
             $RAW_VERSION = "0.0.0.0"
           }
-          # 将版本号补全为至少四段（如 1.0 → 1.0.0.0）
+          # 补全版本号为四段
           $parts = $RAW_VERSION.Split('.')
           while ($parts.Count -lt 4) { $parts += '0' }
           $FULL_VERSION = $parts -join '.'
 
+          # 设置环境变量让 Nuitka 自动下载依赖
+          $env:NUITKA_DEPS_DOWNLOAD = "yes"
+
           python -m nuitka `
             --standalone `
             --onefile `
-            --windows-disable-console `
+            --windows-console-mode=disable `
             --windows-icon-from-ico=assets/icon.ico `
             --file-version="$FULL_VERSION" `
             --product-version="$FULL_VERSION" `
             --include-data-dir=templates=templates `
             --output-dir=dist_nuitka `
             --output-filename="CoreNetDiag_Nuitka_$DISPLAY_NAME.exe" `
+            --assume-yes-for-downloads `
             app.py
 
       - name: 合并产物目录
