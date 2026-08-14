@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>系统网络诊断与终端隔离服务</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:"Microsoft YaHei","SimHei",sans-serif;background:#f0f2f5;color:#333;font-size:14px}
+        .container{max-width:850px;margin:40px auto;padding:0 20px}
+        .header-title{font-size:20px;font-weight:bold;color:#444;margin-bottom:24px;display:flex;justify-content:space-between;align-items:center}
+        .card{background:#fff;border-radius:6px;margin-bottom:20px;box-shadow:0 2px 8px rgba(0,0,0,0.05);overflow:hidden}
+        .card-header{padding:12px 20px;background:#343a40;color:#fff;font-weight:bold;font-size:15px;display:flex;justify-content:space-between;align-items:center}
+        .card-body{padding:20px}
+        .status-grid{display:flex;justify-content:space-between;text-align:center}
+        .status-item{flex:1}
+        .status-item small{display:block;color:#888;font-size:12px;margin-bottom:8px}
+        .status-item span{font-size:16px;font-weight:bold}
+        .text-success{color:#198754}.text-danger{color:#dc3545}.text-warning{color:#fd7e14}
+        .btn{padding:6px 14px;border:none;border-radius:4px;cursor:pointer;font-size:13px;transition:0.2s}
+        .btn-outline-light{background:transparent;border:1px solid #fff;color:#fff}
+        .btn-outline-light:hover{background:rgba(255,255,255,0.1)}
+        .btn-primary{background:#0d6efd;color:#fff}
+        .btn-primary:hover{background:#0b5ed7}
+        .btn-outline{border:1px solid #ccc;background:#fff;color:#333}
+        .btn-outline:hover{background:#f8f9fa}
+        .btn-danger{background:#dc3545;color:#fff}
+        .form-control{padding:8px 12px;border:1px solid #ced4da;border-radius:4px;flex:1;outline:none}
+        .form-control:focus{border-color:#86b7fe;box-shadow:0 0 0 0.25rem rgba(13,110,253,.25)}
+        .d-flex{display:flex;gap:10px}
+        table{width:100%;border-collapse:collapse;margin:0}
+        th,td{padding:12px 20px;text-align:left;border-bottom:1px solid #eee}
+        th{background:#f8f9fa;color:#555;font-size:13px}
+        .text-end{text-align:right}
+        .empty{text-align:center;color:#999;padding:30px 0}
+        .fw-bold{font-weight:bold}
+        /* 特殊修复按钮样式 */
+        .btn-repair {background: #ffc107; color: #000; font-weight: bold;}
+        .btn-repair:hover {background: #ffb300;}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header-title">
+            <span>⚙️ 核心网络诊断与隔离控制台</span>
+            <button class="btn btn-repair" onclick="repairFirewall()">🛡️ 修复/重启防火墙</button>
+        </div>
+        
+        <div class="card" style="border-left: 4px solid #343a40;">
+            <div class="card-header">
+                <span>系统运行状态</span>
+                <button class="btn btn-outline-light" onclick="refreshStatus()">刷新状态</button>
+            </div>
+            <div class="card-body">
+                <div class="status-grid">
+                    <div class="status-item">
+                        <small>系统防火墙</small>
+                        <span id="fwStatus">检测中...</span>
+                    </div>
+                    <div class="status-item">
+                        <small>面板端口放行</small>
+                        <span id="portStatus">检测中...</span>
+                    </div>
+                    <div class="status-item">
+                        <small>开机自启动</small>
+                        <div class="d-flex" style="justify-content:center;align-items:center;gap:8px">
+                            <span id="startupStatus">检测中...</span>
+                            <button id="startupBtn" class="btn btn-outline" style="padding:2px 8px;font-size:12px" onclick="toggleStartup()">--</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-body">
+                <form id="addForm" class="d-flex">
+                    <input type="text" id="ipInput" class="form-control" placeholder="请输入要隔离的目标 IPv4 地址" required>
+                    <button type="submit" class="btn btn-primary">执行隔离拦截</button>
+                </form>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header" style="background:#f8f9fa;color:#333;border-bottom:1px solid #ddd">已隔离终端列表</div>
+            <div class="card-body" style="padding:0">
+                <table>
+                    <thead><tr><th>IP 地址</th><th class="text-end">操作</th></tr></thead>
+                    <tbody>
+                        {% for ip in ips %}
+                        <tr>
+                            <td class="text-danger fw-bold">{{ ip }}</td>
+                            <td class="text-end"><button class="btn btn-outline" onclick="unblockIp('{{ ip }}')">恢复连接</button></td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="2" class="empty">当前没有任何被隔离的终端。</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <script>
+        function refreshStatus() {
+            fetch('/api/status').then(r => r.json()).then(data => {
+                const fwEl = document.getElementById('fwStatus');
+                fwEl.textContent = data.firewall_message;
+                fwEl.className = data.firewall_enabled === true ? 'text-success' : (data.firewall_enabled === false ? 'text-danger' : 'text-warning');
+                
+                const portEl = document.getElementById('portStatus');
+                portEl.textContent = data.self_port_message;
+                portEl.className = data.self_port_allowed ? 'text-success' : 'text-warning';
+                
+                const stEl = document.getElementById('startupStatus');
+                stEl.textContent = data.startup_enabled ? '已启用' : '未启用';
+                
+                const btn = document.getElementById('startupBtn');
+                btn.textContent = data.startup_enabled ? '关闭' : '开启';
+                btn.onclick = () => toggleStartup(data.startup_enabled ? 'disable' : 'enable');
+            });
+        }
+
+        function toggleStartup(action) {
+            fetch('/api/startup', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({action: action})
+            }).then(r => r.json()).then(() => refreshStatus());
+        }
+
+        function repairFirewall() {
+            if(!confirm("检测到防火墙异常被关闭或拦截规则失效？\n\n点击确定将尝试强制开启防火墙、修复端口并重载所有拦截规则。")) return;
+            fetch('/api/repair_firewall', {method: 'POST'})
+            .then(res => res.json())
+            .then(data => {
+                if(data.success) {
+                    alert("指令下发成功！系统防火墙及规则已重载。");
+                    refreshStatus();
+                } else {
+                    alert("修复失败: " + data.error);
+                }
+            });
+        }
+
+        document.getElementById('addForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            fetch('/api/block', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ip: document.getElementById('ipInput').value.trim()})
+            }).then(res => res.json()).then(data => location.reload());
+        });
+
+        function unblockIp(ip) {
+            fetch('/api/unblock', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ip: ip})
+            }).then(res => res.json()).then(data => location.reload());
+        }
+
+        document.addEventListener('DOMContentLoaded', refreshStatus);
+    </script>
+</body>
+</html>
