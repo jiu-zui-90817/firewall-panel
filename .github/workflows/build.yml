@@ -40,11 +40,11 @@ jobs:
 
       - name: 构建 PyInstaller 版本
         run: |
-          $VERSION = "${{ github.ref_name }}"
-          if ($VERSION -notmatch '^v') { $VERSION = "dev" }
+          $VERSION_TAG = "${{ github.ref_name }}"
+          if ($VERSION_TAG -notmatch '^v') { $VERSION_TAG = "dev" }
           New-Item -ItemType Directory -Force -Path static
           pyinstaller -F -w `
-            --name "CoreNetDiag_PyInstaller_$VERSION" `
+            --name "CoreNetDiag_PyInstaller_$VERSION_TAG" `
             --icon=assets/icon.ico `
             --add-data "templates;templates" `
             --version-file=version_info.txt `
@@ -52,20 +52,30 @@ jobs:
             --distpath dist_pyinstaller `
             app.py
 
-      - name: 构建 Nuitka 版本
+      - name: 构建 Nuitka 版本（处理版本号格式）
         run: |
-          $VERSION = "${{ github.ref_name }}"
-          if ($VERSION -notmatch '^v') { $VERSION = "dev" }
+          $VERSION_TAG = "${{ github.ref_name }}"
+          # 提取纯数字版本（去掉前导 v 或 V）
+          if ($VERSION_TAG -match '^[vV]') {
+            $RAW_VERSION = $VERSION_TAG.Substring(1)
+          } else {
+            $RAW_VERSION = "0.0.0.0"   # 手动触发时的默认版本
+          }
+          # 确保至少四段（如 1.0 → 1.0.0.0）
+          $parts = $RAW_VERSION.Split('.')
+          while ($parts.Count -lt 4) { $parts += '0' }
+          $FULL_VERSION = $parts -join '.'
+
           python -m nuitka `
             --standalone `
             --onefile `
             --windows-disable-console `
             --windows-icon-from-ico=assets/icon.ico `
-            --file-version="$VERSION" `
-            --product-version="$VERSION" `
+            --file-version="$FULL_VERSION" `
+            --product-version="$FULL_VERSION" `
             --include-data-dir=templates=templates `
             --output-dir=dist_nuitka `
-            --output-filename="CoreNetDiag_Nuitka_$VERSION.exe" `
+            --output-filename="CoreNetDiag_Nuitka_$VERSION_TAG.exe" `
             app.py
 
       - name: 合并产物目录
