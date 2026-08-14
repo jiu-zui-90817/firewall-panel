@@ -1,10 +1,11 @@
 name: Build CoreNet-Diag (PyInstaller + Nuitka)
 
 on:
-  workflow_dispatch:
   push:
+    branches: [ main ]          # 自动构建 main 分支
     tags:
-      - 'v*'
+      - 'v*'                    # 推送 v* 标签时也构建
+  workflow_dispatch:            # 手动触发
 
 jobs:
   build-windows:
@@ -33,13 +34,14 @@ jobs:
             Write-Host "Using existing assets/icon.ico"
           }
 
-      - name: 安装 UPX（仅 PyInstaller 使用）
+      - name: 安装 UPX（PyInstaller 需要）
         uses: crazy-max/ghaction-upx@v3
         with:
           install-only: true
 
       - name: 构建 PyInstaller 版本
         run: |
+          # 获取标签名（若没有标签，则为分支名或默认 dev）
           $VERSION_TAG = "${{ github.ref_name }}"
           if ($VERSION_TAG -notmatch '^v') { $VERSION_TAG = "dev" }
           New-Item -ItemType Directory -Force -Path static
@@ -52,16 +54,19 @@ jobs:
             --distpath dist_pyinstaller `
             app.py
 
-      - name: 构建 Nuitka 版本（处理版本号格式）
+      - name: 构建 Nuitka 版本
         run: |
           $VERSION_TAG = "${{ github.ref_name }}"
-          # 提取纯数字版本（去掉前导 v 或 V）
-          if ($VERSION_TAG -match '^[vV]') {
+          # 确定显示名称（用于输出文件名）
+          if ($VERSION_TAG -match '^v') {
+            $DISPLAY_NAME = $VERSION_TAG
+            # 去掉前导 v 或 V，提取纯数字部分
             $RAW_VERSION = $VERSION_TAG.Substring(1)
           } else {
-            $RAW_VERSION = "0.0.0.0"   # 手动触发时的默认版本
+            $DISPLAY_NAME = "dev"
+            $RAW_VERSION = "0.0.0.0"
           }
-          # 确保至少四段（如 1.0 → 1.0.0.0）
+          # 将版本号补全为至少四段（如 1.0 → 1.0.0.0）
           $parts = $RAW_VERSION.Split('.')
           while ($parts.Count -lt 4) { $parts += '0' }
           $FULL_VERSION = $parts -join '.'
@@ -75,7 +80,7 @@ jobs:
             --product-version="$FULL_VERSION" `
             --include-data-dir=templates=templates `
             --output-dir=dist_nuitka `
-            --output-filename="CoreNetDiag_Nuitka_$VERSION_TAG.exe" `
+            --output-filename="CoreNetDiag_Nuitka_$DISPLAY_NAME.exe" `
             app.py
 
       - name: 合并产物目录
