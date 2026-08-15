@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>系统网络诊断与终端隔离服务</title>
+    <title>Firewall Panel - 防火墙 IP 黑名单管理</title>
     <style>
         *{margin:0;padding:0;box-sizing:border-box}
         body{font-family:"Microsoft YaHei","SimHei",sans-serif;background:#f0f2f5;color:#333;font-size:14px}
@@ -41,7 +41,7 @@
 <body>
     <div class="container">
         <div class="header-title">
-            <span>⚙️ 核心网络诊断与隔离控制台</span>
+            <span>⚙️ Firewall Panel 防火墙管理</span>
             <button class="btn btn-repair" onclick="repairFirewall()">🛡️ 修复/重启防火墙</button>
         </div>
         
@@ -74,14 +74,14 @@
         <div class="card">
             <div class="card-body">
                 <form id="addForm" class="d-flex">
-                    <input type="text" id="ipInput" class="form-control" placeholder="请输入要隔离的目标 IPv4 地址" required>
-                    <button type="submit" class="btn btn-primary">执行隔离拦截</button>
+                    <input type="text" id="ipInput" class="form-control" placeholder="请输入要封锁的目标 IPv4 地址" required>
+                    <button type="submit" class="btn btn-primary">添加封锁</button>
                 </form>
             </div>
         </div>
         
         <div class="card">
-            <div class="card-header" style="background:#f8f9fa;color:#333;border-bottom:1px solid #ddd">已隔离终端列表</div>
+            <div class="card-header" style="background:#f8f9fa;color:#333;border-bottom:1px solid #ddd">已封锁 IP 列表</div>
             <div class="card-body" style="padding:0">
                 <table>
                     <thead><tr><th>IP 地址</th><th class="text-end">操作</th></tr></thead>
@@ -89,10 +89,10 @@
                         {% for ip in ips %}
                         <tr>
                             <td class="text-danger fw-bold">{{ ip }}</td>
-                            <td class="text-end"><button class="btn btn-outline" onclick="unblockIp('{{ ip }}')">恢复连接</button></td>
+                            <td class="text-end"><button class="btn btn-outline" onclick="unblockIp('{{ ip }}')">解除封锁</button></td>
                         </tr>
                         {% else %}
-                        <tr><td colspan="2" class="empty">当前没有任何被隔离的终端。</td></tr>
+                        <tr><td colspan="2" class="empty">当前没有任何被封锁的 IP。</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>

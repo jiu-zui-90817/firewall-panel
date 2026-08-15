@@ -1,4 +1,4 @@
-name: Build CoreNet-Diag (PyInstaller + Nuitka)
+name: Build FirewallPanel (PyInstaller + Nuitka)
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
       - 'V*'
   workflow_dispatch:
 
-# 关键声明需要写权限（创建 Release 必须）
+# 必须声明需要写权限（创建 Release 必须）
 permissions:
   contents: write
 
@@ -49,7 +49,7 @@ jobs:
           if ($VERSION_TAG -notmatch '^[vV]') { $VERSION_TAG = "dev" }
           New-Item -ItemType Directory -Force -Path static
           pyinstaller -F -w `
-            --name "CoreNetDiag_PyInstaller_$VERSION_TAG" `
+            --name "FirewallPanel_PyInstaller_$VERSION_TAG" `
             --icon=assets/icon.ico `
             --add-data "templates;templates" `
             --version-file=version_info.txt `
@@ -91,7 +91,7 @@ jobs:
             --product-version="$FULL_VERSION" `
             --include-data-dir=templates=templates `
             --output-dir=dist_nuitka `
-            --output-filename="CoreNetDiag_Nuitka_$DISPLAY_NAME.exe" `
+            --output-filename="FirewallPanel_Nuitka_$DISPLAY_NAME.exe" `
             --assume-yes-for-downloads `
             app.py
 
@@ -104,7 +104,7 @@ jobs:
       - name: 上传构建产物（两个版本）
         uses: actions/upload-artifact@v4
         with:
-          name: CoreNetDiag-${{ github.run_number }}
+          name: FirewallPanel-${{ github.run_number }}
           path: dist/*.exe
 
       - name: 创建 Release（仅 tag 触发）
