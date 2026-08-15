@@ -24,7 +24,7 @@ app = Flask(__name__, template_folder=template_dir)
 current_blocked_ips = set()
 last_mtime = 0
 
-RULE_PREFIX = "CoreNet-Diag-Block-"
+RULE_PREFIX = "FirewallPanel-Block-"
 DEFAULT_CONFIG = {
     "web_port": 51883,
     "admin_user": "admin",
@@ -129,7 +129,7 @@ def add_to_startup():
         app_path = get_app_path()
         key_path = r"Software\Microsoft\Windows\CurrentVersion\Run"
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path, 0, winreg.KEY_SET_VALUE) as key:
-            winreg.SetValueEx(key, "CoreNetDiagService", 0, winreg.REG_SZ, f'"{app_path}"')
+            winreg.SetValueEx(key, "FirewallPanel", 0, winreg.REG_SZ, f'"{app_path}"')
         return True
     except Exception:
         return False
@@ -138,7 +138,7 @@ def remove_from_startup():
     try:
         key_path = r"Software\Microsoft\Windows\CurrentVersion\Run"
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path, 0, winreg.KEY_SET_VALUE) as key:
-            winreg.DeleteValue(key, "CoreNetDiagService")
+            winreg.DeleteValue(key, "FirewallPanel")
         return True
     except FileNotFoundError:
         return True
@@ -149,7 +149,7 @@ def is_in_startup():
     try:
         key_path = r"Software\Microsoft\Windows\CurrentVersion\Run"
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path, 0, winreg.KEY_READ) as key:
-            winreg.QueryValueEx(key, "CoreNetDiagService")
+            winreg.QueryValueEx(key, "FirewallPanel")
             return True
     except FileNotFoundError:
         return False
